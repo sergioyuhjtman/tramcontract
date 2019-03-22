@@ -3,7 +3,7 @@
  *  @copyright defined in eos/LICENSE.txt
  */
 
-#include <eosio.token/eosio.token.hpp>
+#include "eosio.token.hpp"
 
 namespace eosio {
 
@@ -157,7 +157,6 @@ void token::open( name owner, const symbol& symbol, name ram_payer )
 
 void token::close( name owner, const symbol& symbol )
 {
-   require_auth( owner );
    accounts acnts( _self, owner.value );
    auto it = acnts.find( symbol.code().raw() );
    eosio_assert( it != acnts.end(), "Balance row already deleted or never existed. Action won't have any effect." );
