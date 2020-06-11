@@ -1,17 +1,15 @@
-#include <cmath>
-#include <eosiolib/symbol.hpp>
-#include <eosio.system/eosio.system.hpp>
-
 #include "tramcontract.hpp"
+#include <eosio.system/eosio.system.hpp>
 
 using namespace ramtoken;
 
 using eosiosystem::rammarket;
 using sc = eosiosystem::system_contract;
 
-void tramcontract::settle(asset quantity, name account) {
+void tramcontract::sell(asset quantity, name account) {
 
   // Burn TRAM tokens transfered by the user
+  // implementar como funcion en vez de accion
   action(permission_level{ _self, "active"_n },
       TRAM.get_contract(), "retire"_n,
       std::make_tuple(quantity, std::string("TRAM burnt"))
@@ -26,14 +24,12 @@ void tramcontract::settle(asset quantity, name account) {
   auto fee = ( tokens_out.amount + 199 ) / 200;
   tokens_out.amount -= fee;
 
-  // Sell `quantity` bytes of RAM (TRAM is 1:1 to bytes of RAM)
-  action(permission_level{ _self, "active"_n },
+  action(permission_level{ get_self(), "active"_n },
       "eosio"_n, "sellram"_n,
       std::make_tuple(_self, quantity.amount)
-  ).send();
+  ).send(); // chequear si esta función vende exactamente quantity o hace rodeo y termina aproximando.
 
-  // Transfer obtained EOS to user
-  action(permission_level{ _self, "active"_n },
+  action(permission_level{ get_self(), "active"_n },
       "eosio.token"_n, "transfer"_n,
       std::make_tuple(_self, account, tokens_out, std::string("EOS tokens back"))
   ).send();
@@ -60,12 +56,13 @@ void tramcontract::buy(asset quantity, name account) {
   }
 
   // Buy ram from system market
-  action(permission_level{ _self, "active"_n },
+  action(permission_level{ get_self(), "active"_n },
       "eosio"_n, "buyram"_n,
-      std::make_tuple(_self, _self, quantity)
+      std::make_tuple(get_self(), get_self(), quantity)
   ).send();
 
   // Issue bytes_out tokens to user
+  // Implementar como funcion
   action(permission_level{ _self, "active"_n },
       TRAM.get_contract(), "issue"_n,
       std::make_tuple(account, asset{bytes_out, TRAM.get_symbol()}, std::string("TRAM issued"))
@@ -73,10 +70,10 @@ void tramcontract::buy(asset quantity, name account) {
 
 }
 
-void tramcontract::on_transfer_notification(name from, name to, asset quantity, string memo) {
+void tramcontract::ontransfer(name from, name to, asset quantity, string memo) {
 
   // A notification coming from `eosio.token`
-  if( get_code() == "eosio.token"_n ) {
+  if( get_first_receiver() == "eosio.token"_n ) {
     check(sc::get_core_symbol() == quantity.symbol, "only EOS token allowed");
 
     // Having us as destination and not coming from eosio.ram we skip:
@@ -84,12 +81,11 @@ void tramcontract::on_transfer_notification(name from, name to, asset quantity, 
     //   - notifications of settlement transfers
     if (to == _self && from != "eosio.ram"_n)
       buy(quantity, from);
-
     return;
   }
 
   // A notification coming from `tramcontract`
-  if ( get_code() == TRAM.get_contract() ) {
+  if ( get_first_receiver() == TRAM.get_contract() ) {
 
     if (from == _self) return;
     check(TRAM.get_symbol() == quantity.symbol, "only TRAM token allowed");
