@@ -10,6 +10,6 @@ configure_file(
   "${CMAKE_CURRENT_BINARY_DIR}/helper.cpp"
 )
 
-add_contract(tramcontract tramcontract ${CMAKE_CURRENT_SOURCE_DIR}/tramcontract.cpp ${CMAKE_CURRENT_BINARY_DIR}/helper.cpp)
+add_contract(tramcontract tramcontract ${CMAKE_CURRENT_SOURCE_DIR}/tramcontract.cpp ${CMAKE_CURRENT_SOURCE_DIR}/token_functions.cpp ${CMAKE_CURRENT_BINARY_DIR}/helper.cpp)
 target_compile_options( tramcontract.wasm PUBLIC -I=${EOSIO_CONTRACTS_DIR}/eosio.system/include )
 target_compile_options( tramcontract.wasm PUBLIC -I=${EOSIO_CONTRACTS_DIR}/eosio.token/include )
