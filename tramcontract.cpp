@@ -17,15 +17,26 @@ void tramcontract::settle(asset quantity, name user) {
   rammarket _rammarket("eosio"_n, "eosio"_n.value);
   auto market = _rammarket.get(sc::ramcore_symbol.raw(), "ram market does not exist");
 
-  asset tokens_out;
-  tokens_out = market.convert( asset(quantity.amount, sc::ram_symbol), sc::get_core_symbol());
+  auto ram_balance = market.base.balance;
+  auto core_balance = market.quote.balance;
+
+  eosiosystem::global_state2_singleton state2("eosio"_n, "eosio"_n.value);
+  auto state = state2.get();
+  auto cbt = eosio::current_block_time();
+  // if( cbt <= state.last_ram_increase ) return;  // is it necessary to consider this case?
+  auto new_ram_bytes = (cbt.slot - state.last_ram_increase.slot)*state.new_ram_per_block;  
+
+  int64_t amount_out = eosiosystem::exchange_state::get_bancor_output(
+    ram_balance.amount + new_ram_bytes, core_balance.amount, quantity.amount);  // inp_reserve, out_reserve, inp
+
+  asset tokens_out = asset{amount_out, sc::get_core_symbol()};
   auto fee = ( tokens_out.amount + 199 ) / 200;
   tokens_out.amount -= fee;
 
   action(permission_level{ get_self(), "active"_n },
       "eosio"_n, "sellram"_n,
       std::make_tuple(get_self(), quantity.amount)
-  ).send(); // chequear si esta función vende exactamente quantity o hace rodeo y termina aproximando.
+  ).send();
 
   action(permission_level{ get_self(), "active"_n },
       "eosio.token"_n, "transfer"_n,
@@ -36,6 +47,7 @@ void tramcontract::settle(asset quantity, name user) {
 void tramcontract::buy(asset quantity, name user) {
 
   // Calculate how many bytes of RAM we will get by selling `quantity` EOS
+  
   auto fee = quantity;
   fee.amount = ( fee.amount + 199 ) / 200;
   auto quant_after_fee = quantity;
@@ -43,7 +55,17 @@ void tramcontract::buy(asset quantity, name user) {
 
   rammarket _rammarket("eosio"_n, "eosio"_n.value);
   auto market = _rammarket.get(sc::ramcore_symbol.raw(), "ram market does not exist");
-  int64_t bytes_out = market.convert( quant_after_fee,  sc::ram_symbol ).amount;
+  auto ram_balance = market.base.balance;
+  auto core_balance = market.quote.balance;
+
+  eosiosystem::global_state2_singleton state2("eosio"_n, "eosio"_n.value);
+  auto state = state2.get();
+  auto cbt = eosio::current_block_time();
+  // if( cbt <= state.last_ram_increase ) return;  // is it necessary to consider this case?
+  auto new_ram_bytes = (cbt.slot - state.last_ram_increase.slot)*state.new_ram_per_block;  
+
+  int64_t bytes_out = eosiosystem::exchange_state::get_bancor_output(core_balance.amount,
+    ram_balance.amount + new_ram_bytes, quant_after_fee.amount);  // inp_reserve, out_reserve, inp
 
   // Since the RAM to store the TRAM balance record will be deducted from this
   // contract (if the user doesn't already have a TRAM balance), assert that bytes_out
@@ -55,8 +77,7 @@ void tramcontract::buy(asset quantity, name user) {
 
   // Buy ram from system market
   action(permission_level{ get_self(), "active"_n },
-      "eosio"_n, "buyram"_n,
-      std::make_tuple(get_self(), get_self(), quantity)
+      "eosio"_n, "buyram"_n, std::make_tuple(get_self(), get_self(), quantity)
   ).send();
 
   // Issue bytes_out tokens to user
@@ -68,13 +89,13 @@ void tramcontract::buy(asset quantity, name user) {
       get_self(), "transfer"_n,
       std::make_tuple(get_self(), user, asset{bytes_out, TRAM.get_symbol()}, std::string("TRAM issued"))
   ).send();
-
 }
 
 void tramcontract::ontransfer(name from, name to, asset quantity, string memo) {
 
   // A notification coming from `eosio.token`
   if( get_first_receiver() == "eosio.token"_n ) {
+
     check(sc::get_core_symbol() == quantity.symbol, "only core token allowed");
 
     // Having us as destination and not coming from eosio.ram we skip:

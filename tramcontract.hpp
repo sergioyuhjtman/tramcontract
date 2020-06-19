@@ -4,6 +4,7 @@
 #include <eosio/asset.hpp>
 #include <eosio/system.hpp>
 #include <eosio/print.hpp>
+#include <eosio/singleton.hpp>
 #include <cmath>
 
 using namespace eosio;
@@ -24,6 +25,7 @@ namespace ramtoken {
          [[eosio::action]] void retire( const asset& quantity, const string& memo );
 
       private:
+         // static constexpr symbol ramcore_symbol = symbol(symbol_code("RAMCORE"), 4);
          static constexpr auto TRAM = extended_symbol(
             symbol(symbol_code("TRAM"),0), "tramcontract"_n
          );
@@ -43,7 +45,7 @@ namespace ramtoken {
 
          typedef eosio::multi_index< "stat"_n, currency_stats > stats;
          typedef eosio::multi_index< "accounts"_n, account > accounts;
-
+         
          void settle(asset quantity, name account);
          void buy(asset quantity, name account);
          void add_balance( const name& owner, const asset& value, const name& ram_payer );
