@@ -25,7 +25,6 @@ namespace ramtoken {
          [[eosio::action]] void retire( const asset& quantity, const string& memo );
 
       private:
-         // static constexpr symbol ramcore_symbol = symbol(symbol_code("RAMCORE"), 4);
          static constexpr auto TRAM = extended_symbol(
             symbol(symbol_code("TRAM"),0), "tramcontract"_n
          );
