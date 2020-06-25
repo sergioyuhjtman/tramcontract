@@ -35,7 +35,7 @@ void tramcontract::issue( const name& to, const asset& quantity, const string& m
     const auto& st = *existing;
     check( to == st.issuer, "tokens can only be issued to issuer account" );
 
-    // require_auth( st.issuer );
+    require_auth( st.issuer );
     check( quantity.is_valid(), "invalid quantity" );
     check( quantity.amount > 0, "must issue positive quantity" );
 
@@ -60,7 +60,7 @@ void tramcontract::retire( const asset& quantity, const string& memo )
     check( existing != statstable.end(), "token with symbol does not exist" );
     const auto& st = *existing;
 
-    // require_auth( st.issuer );
+    require_auth( st.issuer );
     check( quantity.is_valid(), "invalid quantity" );
     check( quantity.amount > 0, "must retire positive quantity" );
 
